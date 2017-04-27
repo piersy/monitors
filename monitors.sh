@@ -5,10 +5,12 @@ set -eu
 
 TEMP_FILE=$(mktemp)
 trap "rm ${TEMP_FILE}" EXIT
-xrandr | grep " connected" | grep -v "eDP1" > ${TEMP_FILE}
+set +e # grep returns 1 if the output is empty which can happend if only eDP1 is connected 
+xrandr |  grep " connected" | grep -v "eDP1" > ${TEMP_FILE}
+set -e
 LINES=$(wc -l ${TEMP_FILE})
+cat ${TEMP_FILE}
 LINES=${LINES%% *}
-echo ${LINES}
 case ${LINES} in
 	0)
 		xrandr --output HDMI1 --off --output VGA1 --off --output eDP1 --auto
@@ -18,7 +20,6 @@ case ${LINES} in
 		OUTPUT=${CONTENT%% *}
 		case ${OUTPUT} in
 			HDMI1)
-				echo xrandr --output VGA1 --off --output HDMI1 --auto --above eDP1 --output eDP1 --auto
 				xrandr --output VGA1 --off --output HDMI1 --auto --above eDP1 --output eDP1 --auto
 				#/usr/bin/xrandr --display :0.0 --output HDMI1 --auto
 				;;
