@@ -1,4 +1,4 @@
-BINDIR  = $(DESTDIR)/usr/bin
+BINDIR  = /usr/local/bin
 
 install:
 	mkdir -p $(BINDIR)
