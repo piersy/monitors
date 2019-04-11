@@ -3,32 +3,33 @@ set -eu
 
 [ -z "${DISPLAY}" ] && echo 'X: server not started.' && exit 1
 
-TEMP_FILE=$(mktemp)
-trap "rm ${TEMP_FILE}" EXIT
-set +e # grep returns 1 if the output is empty which can happend if only eDP1 is connected 
-xrandr |  grep " connected" | grep -v "eDP1" > ${TEMP_FILE}
-set -e
-LINES=$(wc -l ${TEMP_FILE})
-cat ${TEMP_FILE}
-LINES=${LINES%% *}
-case ${LINES} in
+# Note, we need to quote this variable when expanding it otherwise the newlines
+# will be converted into spaces.
+CONNECTED=$(xrandr |  grep " connected" | awk '{print $1}')
+
+LAPTOP=$(echo "$CONNECTED" | grep "^e")
+
+if [[ -z $LAPTOP ]]; then
+	echo "Failed to detect laptop display, expecting display beginning with 'e'"
+	echo "Connected displays found"
+	echo "$CONNECTED"
+	exit 1
+fi
+
+REMAINING=$(echo "$CONNECTED" | grep -v "^e" | sort)
+LINE_COUNT=$(echo -n "$REMAINING" | grep -c "^")
+
+MONITOR_1=$(echo "$REMAINING" | sed -n 1p)
+MONITOR_2=$(echo "$REMAINING" | sed -n 2p)
+
+case ${LINE_COUNT} in
 	0)
-		xrandr --output HDMI1 --off --output VGA1 --off --output eDP1 --auto
+		xrandr --output $LAPTOP --auto
 		;;
 	1)
-		CONTENT=$(cat ${TEMP_FILE})
-		OUTPUT=${CONTENT%% *}
-		case ${OUTPUT} in
-			HDMI1)
-				xrandr --output VGA1 --off --output HDMI1 --auto --above eDP1 --output eDP1 --auto
-				#/usr/bin/xrandr --display :0.0 --output HDMI1 --auto
-				;;
-			VGA1)
-				xrandr --output HDMI1 --off --output VGA1 --auto --above eDP1 --output eDP1 --auto
-				;;
-		esac
+		xrandr --output $MONITOR_1 --auto --output $LAPTOP --off
 		;;
 	2)
-		xrandr --output VGA1 --above eDP1 --rotate left --auto  --output HDMI1 --right-of VGA1  --primary --auto --output eDP1 --auto
+		xrandr --output $MONITOR_2 --rotate left --left-of $MONITOR_1 --auto  --output $MONITOR_1 --primary --auto --output $LAPTOP --below $MONITOR_1 --auto
 		;;
 esac
